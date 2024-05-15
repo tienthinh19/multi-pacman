@@ -241,3 +241,56 @@ def betterEvaluationFunction(currentGameState: GameState):
 
 # Abbreviation
 better = betterEvaluationFunction
+
+class AlphaBetaAgent(MultiAgentSearchAgent):
+
+    def getAction(self, gameState):
+        """
+        Returns the minimax action using self.depth and self.evaluationFunction
+        with alpha-beta pruning.
+        """
+        def alphaBeta(state, depth, agentIndex, alpha, beta):
+            numAgents = state.getNumAgents()
+            if depth == self.depth or state.isWin() or state.isLose():
+                return self.evaluationFunction(state), None
+
+            if agentIndex == 0:  # Pacman's turn (maximizer)
+                return maxValue(state, depth, agentIndex, alpha, beta)
+            else:  # Ghosts' turn (minimizer)
+                return minValue(state, depth, agentIndex, alpha, beta)
+
+        def maxValue(state, depth, agentIndex, alpha, beta):
+            v = float('-inf')
+            bestAction = None
+            for action in state.getLegalActions(agentIndex):
+                successor = state.generateSuccessor(agentIndex, action)
+                value, _ = alphaBeta(successor, depth, agentIndex + 1, alpha, beta)
+                if value > v:
+                    v = value
+                    bestAction = action
+                if v > beta:
+                    return v, bestAction
+                alpha = max(alpha, v)
+            return v, bestAction
+
+        def minValue(state, depth, agentIndex, alpha, beta):
+            v = float('inf')
+            bestAction = None
+            numAgents = state.getNumAgents()
+            nextAgentIndex = (agentIndex + 1) % numAgents
+            nextDepth = depth + 1 if nextAgentIndex == 0 else depth
+
+            for action in state.getLegalActions(agentIndex):
+                successor = state.generateSuccessor(agentIndex, action)
+                value, _ = alphaBeta(successor, nextDepth, nextAgentIndex, alpha, beta)
+                if value < v:
+                    v = value
+                    bestAction = action
+                if v < alpha:
+                    return v, bestAction
+                beta = min(beta, v)
+            return v, bestAction
+
+        _, action = alphaBeta(gameState, 0, 0, float('-inf'), float('inf'))
+        return action
+
