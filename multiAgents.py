@@ -227,17 +227,89 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def expectimax(state, depth, agentIndex):
+            numAgents = state.getNumAgents()
+            if depth == self.depth or state.isWin() or state.isLose():
+                return self.evaluationFunction(state), None
+
+            if agentIndex == 0:  # Pacman's turn (maximizer)
+                return maxValue(state, depth, agentIndex)
+            else:  # Ghosts' turn (expectation)
+                return expValue(state, depth, agentIndex)
+        def maxValue(state, depth, agentIndex):
+            v = float('-inf')
+            bestAction = None
+            for action in state.getLegalActions(agentIndex):
+                successor = state.generateSuccessor(agentIndex, action)
+                value, _ = expectimax(successor, depth, agentIndex + 1)
+                if value > v:
+                    v = value
+                    bestAction = action
+            return v, bestAction
+
+        def expValue(state, depth, agentIndex):
+            v = 0
+            ghostActions = state.getLegalActions(agentIndex)
+            prob = 1.0 / len(ghostActions)  # Uniform probability
+            nextAgentIndex = (agentIndex + 1) % state.getNumAgents()
+            nextDepth = depth + 1 if nextAgentIndex == 0 else depth
+
+            for action in ghostActions:
+                successor = state.generateSuccessor(agentIndex, action)
+                value, _ = expectimax(successor, nextDepth, nextAgentIndex)
+                v += value * prob
+            return v, None
+
+        _, action = expectimax(gameState, 0, 0)
+        return action
 
 def betterEvaluationFunction(currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
-    evaluation function (question 5).
-
-    DESCRIPTION: <write something here so we know what you did>
+    evaluation function.
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    # Extract useful information from the current game state
+    pacmanPos = currentGameState.getPacmanPosition()
+    food = currentGameState.getFood()
+    ghostStates = currentGameState.getGhostStates()
+    scaredTimes = [ghostState.scaredTimer for ghostState in ghostStates]
+    capsules = currentGameState.getCapsules()
+    foodList = food.asList()
+
+    # Initial evaluation score is the current game score
+    score = currentGameState.getScore()
+
+    # Factor in the distance to the nearest food
+    if foodList:
+        minFoodDistance = min(manhattanDistance(pacmanPos, foodPos) for foodPos in foodList)
+        score += 10.0 / minFoodDistance
+
+    # Factor in the distance to the nearest capsule
+    if capsules:
+        minCapsuleDistance = min(manhattanDistance(pacmanPos, capsule) for capsule in capsules)
+        score += 50.0 / minCapsuleDistance
+
+    # Factor in the distance to the nearest ghost and scared times
+    for ghostState, scaredTime in zip(ghostStates, scaredTimes):
+        ghostPos = ghostState.getPosition()
+        distanceToGhost = manhattanDistance(pacmanPos, ghostPos)
+        
+        if scaredTime > 0:
+            # If the ghost is scared, closer is better (we can eat it)
+            score += 200.0 / distanceToGhost
+        else:
+            # If the ghost is not scared, avoid it
+            if distanceToGhost > 0:
+                score -= 2.0 / distanceToGhost
+
+    # Factor in the number of remaining food pellets and capsules
+    score -= len(foodList) * 20  # Penalty for each remaining food pellet
+    score -= len(capsules) * 100  # Penalty for each remaining capsule
+
+    # Factor in the scared times of the ghosts
+    score += sum(scaredTimes) * 10
+
+    return score
 
 # Abbreviation
 better = betterEvaluationFunction
